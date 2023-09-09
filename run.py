@@ -5,7 +5,7 @@ import argparse
 import torch
 import torchvision.transforms as T
 
-from repnet import utils, plots
+# from repnet import utils, plots
 from repnet.model import RepNet
 
 
@@ -27,10 +27,10 @@ SAMPLE_VIDEOS_URLS = [
 # Script arguments
 parser = argparse.ArgumentParser(description='Run the RepNet model on a given video.')
 parser.add_argument('--weights', type=str, default=os.path.join(PROJECT_ROOT, 'checkpoints', 'pytorch_weights.pth'), help='Path to the model weights (default: %(default)s).')
-parser.add_argument('--video', type=str, default=SAMPLE_VIDEOS_URLS[0], help='Video to test the model on, either a YouTube/http/local path (default: %(default)s).')
+parser.add_argument('--video', type=str, default='1', help='Video to test the model on, either a YouTube/http/local path (default: %(default)s).')
 parser.add_argument('--strides', nargs='+', type=int, default=[1, 2, 3, 4, 8], help='Temporal strides to try when testing on the sample video (default: %(default)s).')
 parser.add_argument('--device', type=str, default='cuda', help='Device to use for inference (default: %(default)s).')
-parser.add_argument('--no-score', action='store_true', help='If specified, do not plot the periodicity score.')
+parser.add_argument('--no-score', action='store_true',default=False, help='If specified, do not plot the periodicity score.')
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     video_path = os.path.join(PROJECT_ROOT, 'videos', os.path.basename(args.video) + '.mp4')
     if not os.path.exists(video_path):
         os.makedirs(os.path.dirname(video_path), exist_ok=True)
-        utils.download_file(args.video, video_path)
+        # utils.download_file(args.video, video_path)
 
     # Read frames and apply preprocessing
     print(f'Reading video file and pre-processing frames...')
@@ -75,6 +75,7 @@ if __name__ == '__main__':
     for stride in args.strides:
         # Apply stride
         stride_frames = frames[::stride]
+        
         stride_frames = stride_frames[:(len(stride_frames) // 64) * 64]
         if len(stride_frames) < 64:
             continue # Skip this stride if there are not enough frames
@@ -101,16 +102,16 @@ if __name__ == '__main__':
     print(f'Save plots and video with counts to {OUT_VISUALIZATIONS_DIR}...')
     os.makedirs(OUT_VISUALIZATIONS_DIR, exist_ok=True)
     dist = torch.cdist(best_embeddings, best_embeddings, p=2)**2
-    tsm_img = plots.plot_heatmap(dist.numpy(), log_scale=True)
-    pca_img = plots.plot_pca(best_embeddings.numpy())
-    cv2.imwrite(os.path.join(OUT_VISUALIZATIONS_DIR, 'tsm.png'), tsm_img)
-    cv2.imwrite(os.path.join(OUT_VISUALIZATIONS_DIR, 'pca.png'), pca_img)
+    # tsm_img = plots.plot_heatmap(dist.numpy(), log_scale=True)
+    # pca_img = plots.plot_pca(best_embeddings.numpy())
+    # cv2.imwrite(os.path.join(OUT_VISUALIZATIONS_DIR, 'tsm.png'), tsm_img)
+    # cv2.imwrite(os.path.join(OUT_VISUALIZATIONS_DIR, 'pca.png'), pca_img)
 
-    # Generate video with counts
-    rep_frames = plots.plot_repetitions(raw_frames[:len(best_period_count)], best_period_count.tolist(), best_periodicity_score.tolist() if not args.no_score else None)
-    video = cv2.VideoWriter(os.path.join(OUT_VISUALIZATIONS_DIR, 'repetitions.mp4'), cv2.VideoWriter_fourcc(*'mp4v'), fps, rep_frames[0].shape[:2][::-1])
-    for frame in rep_frames:
-        video.write(frame)
-    video.release()
+    # # Generate video with counts
+    # rep_frames = plots.plot_repetitions(raw_frames[:len(best_period_count)], best_period_count.tolist(), best_periodicity_score.tolist() if not args.no_score else None)
+    # video = cv2.VideoWriter(os.path.join(OUT_VISUALIZATIONS_DIR, 'repetitions.mp4'), cv2.VideoWriter_fourcc(*'mp4v'), fps, rep_frames[0].shape[:2][::-1])
+    # for frame in rep_frames:
+    #     video.write(frame)
+    # video.release()
 
     print('Done')

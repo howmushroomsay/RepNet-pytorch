@@ -51,6 +51,7 @@ class RepNet(nn.Module):
         """Initialize the encoder network using ResNet50 V2."""
         encoder = torch.hub.load('huggingface/pytorch-image-models', 'resnetv2_50')
         # Remove unused layers
+        # print(encoder)
         del encoder.stages[2].blocks[3:6], encoder.stages[3]
         encoder.norm = nn.Identity()
         encoder.head.global_pool = nn.Identity()

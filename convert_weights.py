@@ -3,7 +3,7 @@ import os
 import argparse
 import torch
 import numpy as np
-from tensorflow.python.training import py_checkpoint_reader
+# from tensorflow.python.training import py_checkpoint_reader
 
 from repnet import utils
 from repnet.model import RepNet
@@ -142,57 +142,57 @@ if __name__ == '__main__':
     print('Downloading checkpoints...')
     tf_checkpoint_dir = os.path.join(OUT_CHECKPOINTS_DIR, 'tf_checkpoint')
     os.makedirs(tf_checkpoint_dir, exist_ok=True)
-    for file in TF_CHECKPOINT_FILES:
-        dst = os.path.join(tf_checkpoint_dir, file)
-        if not os.path.exists(dst):
-            utils.download_file(f'{TF_CHECKPOINT_BASE_URL}/{file}', dst)
+    # for file in TF_CHECKPOINT_FILES:
+    #     dst = os.path.join(tf_checkpoint_dir, file)
+    #     if not os.path.exists(dst):
+    #         utils.download_file(f'{TF_CHECKPOINT_BASE_URL}/{file}', dst)
 
     # Load tensorflow weights into a dictionary
     print('Loading tensorflow checkpoint...')
-    checkpoint_path = os.path.join(tf_checkpoint_dir, 'ckpt-88')
-    checkpoint_reader = py_checkpoint_reader.NewCheckpointReader(checkpoint_path)
-    shape_map = checkpoint_reader.get_variable_to_shape_map()
-    tf_state_dict = {}
-    for var_name in sorted(shape_map.keys()):
-        var_tensor = checkpoint_reader.get_tensor(var_name)
-        if not var_name.startswith('model') or '.OPTIMIZER_SLOT' in var_name:
-            continue # Skip variables that are not part of the model, e.g. from the optimizer
-        # Split var_name into path
-        var_path = var_name.split('/')[1:]  # Remove `model`` key from the path
-        var_path = [p for p in var_path if p not in ['.ATTRIBUTES', 'VARIABLE_VALUE']]
-        # Map weights into a nested dictionary
-        current_dict = tf_state_dict
-        for path in var_path[:-1]:
-            current_dict = current_dict.setdefault(path, {})
-        current_dict[var_path[-1]] = var_tensor
+    # checkpoint_path = os.path.join(tf_checkpoint_dir, 'ckpt-88')
+    # checkpoint_reader = py_checkpoint_reader.NewCheckpointReader(checkpoint_path)
+    # shape_map = checkpoint_reader.get_variable_to_shape_map()
+    # tf_state_dict = {}
+    # for var_name in sorted(shape_map.keys()):
+    #     var_tensor = checkpoint_reader.get_tensor(var_name)
+    #     if not var_name.startswith('model') or '.OPTIMIZER_SLOT' in var_name:
+    #         continue # Skip variables that are not part of the model, e.g. from the optimizer
+    #     # Split var_name into path
+    #     var_path = var_name.split('/')[1:]  # Remove `model`` key from the path
+    #     var_path = [p for p in var_path if p not in ['.ATTRIBUTES', 'VARIABLE_VALUE']]
+    #     # Map weights into a nested dictionary
+    #     current_dict = tf_state_dict
+    #     for path in var_path[:-1]:
+    #         current_dict = current_dict.setdefault(path, {})
+    #     current_dict[var_path[-1]] = var_tensor
 
-    # Merge transformer self-attention weights into a single tensor
-    for k in ['transformer_layers', 'transformer_layers2']:
-        v = tf_state_dict[k]['0']['mha']
-        v['w_weight'] = np.concatenate([v['wq']['kernel'].T, v['wk']['kernel'].T, v['wv']['kernel'].T], axis=0)
-        v['w_bias'] = np.concatenate([v['wq']['bias'].T, v['wk']['bias'].T, v['wv']['bias'].T], axis=0)
-        del v['wk'], v['wq'], v['wv']
-    tf_state_dict = utils.flatten_dict(tf_state_dict, keep_last=True)
-    # Add missing final level for some weights
-    for k, v in tf_state_dict.items():
-        if not isinstance(v, dict):
-            tf_state_dict[k] = {None: v}
+    # # Merge transformer self-attention weights into a single tensor
+    # for k in ['transformer_layers', 'transformer_layers2']:
+    #     v = tf_state_dict[k]['0']['mha']
+    #     v['w_weight'] = np.concatenate([v['wq']['kernel'].T, v['wk']['kernel'].T, v['wv']['kernel'].T], axis=0)
+    #     v['w_bias'] = np.concatenate([v['wq']['bias'].T, v['wk']['bias'].T, v['wv']['bias'].T], axis=0)
+    #     del v['wk'], v['wq'], v['wv']
+    # tf_state_dict = utils.flatten_dict(tf_state_dict, keep_last=True)
+    # # Add missing final level for some weights
+    # for k, v in tf_state_dict.items():
+    #     if not isinstance(v, dict):
+    #         tf_state_dict[k] = {None: v}
 
-    # Convert to a format compatible with PyTorch and save
-    print(f'Converting to PyTorch format...')
+    # # Convert to a format compatible with PyTorch and save
+    # print(f'Converting to PyTorch format...')
     pt_checkpoint_path = os.path.join(OUT_CHECKPOINTS_DIR, 'pytorch_weights.pth')
-    pt_state_dict = {}
-    for k_tf, _, k_pt in WEIGHTS_MAPPING:
-        assert k_pt not in pt_state_dict
-        pt_state_dict[k_pt] = {}
-        for attr in tf_state_dict[k_tf]:
-            new_attr = ATTR_MAPPING.get(attr, attr)
-            pt_state_dict[k_pt][new_attr] = torch.from_numpy(tf_state_dict[k_tf][attr])
-            if attr == 'kernel':
-                weights_permutation = WEIGHTS_PERMUTATION[pt_state_dict[k_pt][new_attr].ndim] # Permute weights if needed
-                pt_state_dict[k_pt][new_attr] = pt_state_dict[k_pt][new_attr].permute(weights_permutation)
-    pt_state_dict = utils.flatten_dict(pt_state_dict, skip_none=True)
-    torch.save(pt_state_dict, pt_checkpoint_path)
+    # pt_state_dict = {}
+    # for k_tf, _, k_pt in WEIGHTS_MAPPING:
+    #     assert k_pt not in pt_state_dict
+    #     pt_state_dict[k_pt] = {}
+    #     for attr in tf_state_dict[k_tf]:
+    #         new_attr = ATTR_MAPPING.get(attr, attr)
+    #         pt_state_dict[k_pt][new_attr] = torch.from_numpy(tf_state_dict[k_tf][attr])
+    #         if attr == 'kernel':
+    #             weights_permutation = WEIGHTS_PERMUTATION[pt_state_dict[k_pt][new_attr].ndim] # Permute weights if needed
+    #             pt_state_dict[k_pt][new_attr] = pt_state_dict[k_pt][new_attr].permute(weights_permutation)
+    # pt_state_dict = utils.flatten_dict(pt_state_dict, skip_none=True)
+    # torch.save(pt_state_dict, pt_checkpoint_path)
 
     # Initialize the model and try to load the weights
     print('Check that the weights can be loaded into the model...')
